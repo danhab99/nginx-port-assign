@@ -19,7 +19,7 @@ if not args.dry_run and not os.geteuid() == 0:
     sys.exit("\nOnly root can run this script\n")
 
 TEMPLATE= """server {
-  listen 443 ssl;
+  listen 443 ssl http2;
 
   server_name $SERVICE$$SERVER_NAME$.localhost.xyz;
   server_name $SERVICE$$SERVER_NAME$.$SERVER_EXT$;
@@ -56,21 +56,24 @@ if __name__ == '__main__':
       s = server_name.split('.')
       name = s[0]
       ext = s[1]
-      for service in config[server_name]:
+      for service, enabled in config[server_name].items():
         print(server_name, service)
-        dotService = service + '.' if len(service) > 0 else service
-        certBotSites.append('-d ' + dotService + server_name)
+        dotService = service + '.' if service != '.' else ''
+        service = '' if service == '.' else service        
+        p = Port if enabled else 0
 
         nginxConfig = TEMPLATE.replace('$SERVER_NAME$', name)
         nginxConfig = nginxConfig.replace('$SERVICE$', dotService)
         nginxConfig = nginxConfig.replace('$SERVER_EXT$', ext)
-        nginxConfig = nginxConfig.replace('$PORT$', str(Port))
+        nginxConfig = nginxConfig.replace('$PORT$', str(p))
 
         ConfigFile = '/etc/nginx/npa_sites/%s_%s_%s.nginx.config' % (service, name, ext)
         writeFile(ConfigFile, nginxConfig)
+        exports.append('export NPA_%s_%s_%s_PORT=%d' % (service.upper(), name.upper(), ext.upper(), p))
         
-        exports.append('export NPA_%s_%s_%s_PORT=%d' % (service.upper(), name.upper(), ext.upper(), Port))
-        command('ln -s %s /etc/nginx/sites-enabled/' % ConfigFile)
+        if enabled:
+          command('ln -s %s /etc/nginx/sites-enabled/' % ConfigFile)
+          certBotSites.append('-d ' + dotService + server_name)
 
         Port = Port + 1
   
