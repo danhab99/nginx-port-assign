@@ -19,7 +19,7 @@ if not args.dry_run and not os.geteuid() == 0:
     sys.exit("\nOnly root can run this script\n")
 
 TEMPLATE= """server {
-  listen 443 ssl http2;
+  listen 443 ssl http2 default_server;
 
   server_name $SERVICE$$SERVER_NAME$.localhost.xyz;
   server_name $SERVICE$$SERVER_NAME$.$SERVER_EXT$;
